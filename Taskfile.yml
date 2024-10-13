@@ -1,0 +1,19 @@
+version: '3'
+
+dotenv: ['.env']
+
+tasks:
+  install:
+    cmds:
+      - docker run --name postgres_course -p 5432:5432 -e POSTGRES_PASSWORD=$PG_PASS -d postgres
+  tune:
+    cmds:
+      - docker cp settings.sql  postgres_course:/
+      - docker exec -it postgres_course  sh -c "psql -U postgres < settings.sql"
+      - docker restart postgres_course
+  thai:copy:
+    cmds:
+      - docker cp $DUMP_PATH postgres_course:/
+  thai:install:
+    cmds:
+      - docker exec -it postgres_course  sh -c "psql -U postgres < thai.sql"
