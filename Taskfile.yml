@@ -17,3 +17,17 @@ tasks:
   thai:install:
     cmds:
       - docker exec -it postgres_course  sh -c "psql -U postgres < thai.sql"
+  replicas:up:
+    cmds:
+      - docker compose up
+  replicas:tune:
+    cmds:
+      - docker compose cp settings.sql  master:/
+      - docker compose exec -it master  sh -c "psql -U postgres < settings.sql"
+      - docker compose restart master
+      - docker compose cp settings.sql  replica_1:/
+      - docker compose exec -it replica_1  sh -c "psql -U postgres < settings.sql"
+      - docker compose restart replica_1
+  replicas:down:
+    cmds:
+      - docker compose down

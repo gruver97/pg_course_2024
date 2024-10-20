@@ -1,0 +1,24 @@
+services:
+
+  master:
+    image: postgres:17
+    environment:
+      POSTGRES_PASSWORD: ${PG_PASS}
+    ports:
+      - 5432:5432
+    deploy:
+      resources:
+        limits:
+          cpus: '6'
+          memory: 16G
+  replica_1:
+    image: postgres:17
+    environment:
+      POSTGRES_PASSWORD: ${PG_PASS}
+    ports:
+      - 6432:5432
+    deploy:
+      resources:
+        limits:
+          cpus: '6'
+          memory: 16G
