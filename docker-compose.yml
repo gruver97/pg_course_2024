@@ -15,6 +15,7 @@ services:
     image: postgres:17
     environment:
       POSTGRES_PASSWORD: ${PG_PASS}
+      PGPASSWORD: ${PG_PASS}
     ports:
       - 6432:5432
     deploy:
