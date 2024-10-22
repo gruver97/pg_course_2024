@@ -50,6 +50,9 @@ tasks:
       - docker compose exec -it replica_1 sh -c 'psql -U postgres -c "ALTER SYSTEM SET wal_level = logical"'
       - docker compose restart replica_1
       - docker compose exec -it replica_1 sh -c "psql -U postgres -d thai -c \"CREATE SUBSCRIPTION thai_sub CONNECTION 'host=master port=5432 user=postgres dbname=thai' PUBLICATION thai_pub\""
+  replicas:master:restore:data:
+    cmds:
+      - time docker compose exec -it master  sh -c "pg_restore -U postgres -a -v -F d -j 6 -d thai thaidump"
   replicas:down:
     cmds:
       - docker compose down -v
