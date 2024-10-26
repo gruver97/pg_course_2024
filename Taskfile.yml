@@ -53,13 +53,13 @@ tasks:
       - docker compose exec -it master  sh -c "psql -U postgres < settings.sql"
       - docker compose restart master
       - task: replicas:master:install
-      - docker compose cp scripts/write_load.sql  master:/write_load.sql
-      - docker compose cp scripts/read_load.sql  master:/read_load.sql
       - task: replicas:master:bench:run:init
       - task: replicas:master:bench:run
   replicas:master:bench:run:init:
     cmds:
-      - time docker compose exec -it master sh -c "pgbench -i -U postgres -p 5432 thai"
+      - docker compose cp scripts/write_load.sql  master:/write_load.sql
+      - docker compose cp scripts/read_load.sql  master:/read_load.sql
+      - docker compose exec -it master sh -c "pgbench -i -U postgres -p 5432 thai"
   replicas:master:bench:run:
     cmds:
       - time docker compose exec -it master sh -c "pgbench -c 8 -j 4 -T 60 -n -U postgres -p 5432 thai"
