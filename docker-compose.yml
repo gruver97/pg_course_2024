@@ -18,6 +18,8 @@ services:
       PGPASSWORD: ${PG_PASS}
     ports:
       - 6432:5432
+    volumes:
+        - /Users/stanislavgerasko/data-slave:/var/lib/postgresql/data
     deploy:
       resources:
         limits:
