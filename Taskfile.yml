@@ -65,3 +65,24 @@ tasks:
       - time docker compose exec -it master sh -c "pgbench -c 8 -j 4 -T 60 -n -U postgres -p 5432 thai"
       - time docker compose exec -it master sh -c "pgbench -c 8 -j 4 -T 60 -f ./write_load.sql -n -U postgres -p 5432 thai"
       - time docker compose exec -it master sh -c "pgbench -c 8 -j 4 -T 60 -f ./read_load.sql -n -U postgres -p 5432 thai"
+  replicas:streaming:master:setup:
+    cmds:
+      - docker compose exec -it master  sh -c 'psql -U postgres -c "ALTER SYSTEM SET wal_level = replica"'
+      - docker compose exec -it master  sh -c 'psql -U postgres -c "ALTER SYSTEM SET hot_standby = on"'
+      - docker compose exec -it master  sh -c 'psql -U postgres -c "ALTER SYSTEM SET synchronous_commit = off"'
+      - docker compose exec -it master  sh -c 'psql -U postgres -c "ALTER SYSTEM SET hot_standby_feedback = on"'
+      - docker compose exec -it master  sh -c 'psql -U postgres -c "CREATE DATABASE thai"'
+      - docker compose exec -it master  sh -c "psql -U postgres -d thai -c \"CREATE USER replicator WITH REPLICATION ENCRYPTED PASSWORD 'my_replicator_password'\""
+      - docker compose exec -it master  sh -c "psql -U postgres -d thai -c \"SELECT * FROM pg_create_physical_replication_slot('replication_slot_slave1')\""
+      - docker compose cp settings.sql  master:/
+      - docker compose exec -it master  sh -c "psql -U postgres < settings.sql"
+      - docker compose restart master
+      - task: replicas:master:install
+  replicas:replica:one:setup:
+    cmds:
+      - docker compose cp settings.sql  replica_1:/
+      - docker compose exec -it replica_1  sh -c "psql -U postgres < settings.sql"
+      - docker compose restart replica_1
+      - docker compose exec -it replica_1  sh -c "pg_basebackup h localhost -p 5432 -U test -D /var/lib/postgresql/17/main/ -Fp -Xs -R"
+
+
