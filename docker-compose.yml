@@ -1,0 +1,39 @@
+services:
+
+  master:
+    image: postgres:17
+    environment:
+      POSTGRES_PASSWORD: ${PG_PASS}
+    ports:
+      - 5432:5432
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 16G
+  replica_1:
+    image: postgres:17
+    environment:
+      POSTGRES_PASSWORD: ${PG_PASS}
+      PGPASSWORD: ${PG_PASS}
+    ports:
+      - 6432:5432
+    volumes:
+        - /Users/stanislavgerasko/data-slave:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 16G
+  replica_2:
+    image: postgres:17
+    environment:
+      POSTGRES_PASSWORD: ${PG_PASS}
+      PGPASSWORD: ${PG_PASS}
+    ports:
+      - 7432:5432
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 16G

@@ -17,3 +17,66 @@ tasks:
   thai:install:
     cmds:
       - docker exec -it postgres_course  sh -c "psql -U postgres < thai.sql"
+  replicas:up:
+    cmds:
+      - docker compose up
+  replicas:master:install:
+    cmds:
+      - docker compose cp $BACKUP_PATH  master:/thaidump
+      - docker compose exec -it master  sh -c "pg_restore -U postgres -F d -j 4 -d thai thaidump"
+      - docker compose exec -it master  sh -c "rm -rf  thaidump"
+  replicas:down:
+    cmds:
+      - docker compose down -v
+  replicas:master:bench:
+    cmds:
+      - docker compose exec -it master  sh -c 'psql -U postgres -c "CREATE DATABASE thai"'
+      - docker compose cp settings.sql  master:/
+      - docker compose exec -it master  sh -c "psql -U postgres < settings.sql"
+      - docker compose restart master
+      - task: replicas:master:install
+      - task: replicas:master:bench:run:init
+      - task: replicas:master:bench:run
+  replicas:master:bench:run:init:
+    cmds:
+      - docker compose cp scripts/write_load.sql  master:/write_load.sql
+      - docker compose cp scripts/read_load.sql  master:/read_load.sql
+      - docker compose exec -it master sh -c "pgbench -i -U postgres -p 5432 thai"
+  replicas:master:bench:run:
+    cmds:
+      - time docker compose exec -it master sh -c "pgbench -c 8 -j 4 -T 60 -n -U postgres -p 5432 thai"
+      - time docker compose exec -it master sh -c "pgbench -c 8 -j 4 -T 60 -f ./write_load.sql -n -U postgres -p 5432 thai"
+      - time docker compose exec -it master sh -c "pgbench -c 8 -j 4 -T 60 -f ./read_load.sql -n -U postgres -p 5432 thai"
+  replicas:streaming:master:setup:
+    cmds:
+      - docker compose exec -it master  sh -c 'psql -U postgres -c "ALTER SYSTEM SET wal_level = replica"'
+      - docker compose exec -it master  sh -c 'psql -U postgres -c "ALTER SYSTEM SET hot_standby = on"'
+      - docker compose exec -it master  sh -c 'psql -U postgres -c "ALTER SYSTEM SET synchronous_commit = off"'
+      - docker compose exec -it master  sh -c 'psql -U postgres -c "ALTER SYSTEM SET hot_standby_feedback = on"'
+      - docker compose exec -it master  sh -c 'psql -U postgres -c "CREATE DATABASE thai"'
+      - docker compose exec -it master  sh -c "psql -U postgres -c \"CREATE USER replicator WITH REPLICATION ENCRYPTED PASSWORD 'my_replicator_password'\""
+      - docker compose exec -it master  sh -c "psql -U postgres -c \"SELECT * FROM pg_create_physical_replication_slot('replication_slot_slave2')\""
+      - docker compose cp settings.sql  master:/
+      - docker compose exec -it master  sh -c "psql -U postgres < settings.sql"
+      - docker compose restart master
+      - docker compose exec -it master  sh -c "pg_basebackup -D /tmp/postgresslave -S replication_slot_slave2 -X stream -P -U repl -Fp -R"
+      - task: replicas:master:install
+  replicas:streaming:master:setup:sync:
+    cmds:
+      - docker compose exec -it master  sh -c 'psql -U postgres -c "ALTER SYSTEM SET wal_level = replica"'
+      - docker compose exec -it master  sh -c 'psql -U postgres -c "ALTER SYSTEM SET hot_standby = on"'
+      - docker compose exec -it master  sh -c 'psql -U postgres -c "ALTER SYSTEM SET synchronous_commit = on"'
+      - docker compose exec -it master  sh -c 'psql -U postgres -c "ALTER SYSTEM SET hot_standby_feedback = off"'
+      - docker compose exec -it master  sh -c "psql -U postgres -c \"ALTER SYSTEM SET synchronous_standby_names = 'FIRST 1 (replica1)'\""
+  replicas:replica:one:setup:
+    cmds:
+      - docker compose cp settings.sql  replica_1:/
+      - docker compose exec -it replica_1  sh -c "psql -U postgres < settings.sql"
+      - docker compose restart replica_1
+      - docker compose exec -it replica_1  sh -c "pg_basebackup -h localhost -p 5432 -U repl -D /var/lib/postgresql/17/main/ -Fp -Xs -R"
+  replicas:streaming:bench:
+    cmds:
+      - task: replicas:streaming:master:setup
+      - task: replicas:replica:one:setup
+      - task: replicas:master:bench:run:init
+      - task: replicas:master:bench:run
