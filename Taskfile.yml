@@ -36,18 +36,29 @@ tasks:
       - docker compose exec -it replica_1  sh -c "psql -U postgres < settings.sql"
       - docker compose restart replica_1
       - docker compose cp $BACKUP_PATH  replica_1:/thaidump
-      - docker compose exec -it replica_1  sh -c "pg_restore -U postgres -s -v -F d -j 6 -d thai thaidump"
+      - docker compose exec -it replica_1  sh -c "pg_restore -U postgres -s -v -F d -j 4 -d thai thaidump"
       - docker compose exec -it replica_1 sh -c "psql -U postgres -d thai -c \"CREATE SUBSCRIPTION thai_sub CONNECTION 'host=master port=5432 user=postgres dbname=thai' PUBLICATION thai_pub\""
   replicas:master:install:
     cmds:
-      - time docker compose cp $BACKUP_PATH  master:/thaidump
-      - time docker compose exec -it master  sh -c "pg_restore -U postgres -v -F d -j 6 -d thai thaidump"
+      - docker compose cp $BACKUP_PATH  master:/thaidump
+      - docker compose exec -it master  sh -c "pg_restore -U postgres -F d -j 4 -d thai thaidump"
+      - docker compose exec -it master  sh -c "rm -rf  thaidump"
   replicas:down:
     cmds:
       - docker compose down -v
-  replicas:all:
-    deps:
-      - task: replicas:tune
-      - task: replicas:install:schema
-      - task: replicas:master:public
-      - task: replicas:replica:one:subscribe
+  replicas:master:bench:
+    cmds:
+      - docker compose exec -it master  sh -c 'psql -U postgres -c "CREATE DATABASE thai"'
+      - docker compose cp settings.sql  master:/
+      - docker compose exec -it master  sh -c "psql -U postgres < settings.sql"
+      - docker compose restart master
+      - task: replicas:master:install
+      - docker compose cp scripts/write_load.sql  master:/write_load.sql
+      - task: replicas:master:bench:run:init
+      - task: replicas:master:bench:run
+  replicas:master:bench:run:init:
+    cmds:
+      - time docker compose exec -it master sh -c "pgbench -i -U postgres -p 5432 thai"
+  replicas:master:bench:run:
+    cmds:
+      - time docker compose exec -it master sh -c "pgbench -c 8 -j 4 -T 60 -f ./write_load.sql -n -U postgres -p 5432 thai"

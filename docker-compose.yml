@@ -9,7 +9,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '6'
+          cpus: '4'
           memory: 16G
   replica_1:
     image: postgres:17
@@ -21,5 +21,17 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '6'
+          cpus: '4'
+          memory: 16G
+  replica_2:
+    image: postgres:17
+    environment:
+      POSTGRES_PASSWORD: ${PG_PASS}
+      PGPASSWORD: ${PG_PASS}
+    ports:
+      - 7432:5432
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
           memory: 16G
