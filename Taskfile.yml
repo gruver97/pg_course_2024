@@ -79,6 +79,13 @@ tasks:
       - docker compose restart master
       - docker compose exec -it master  sh -c "pg_basebackup -D /tmp/postgresslave -S replication_slot_slave2 -X stream -P -U repl -Fp -R"
       - task: replicas:master:install
+  replicas:streaming:master:setup:sync:
+    cmds:
+      - docker compose exec -it master  sh -c 'psql -U postgres -c "ALTER SYSTEM SET wal_level = replica"'
+      - docker compose exec -it master  sh -c 'psql -U postgres -c "ALTER SYSTEM SET hot_standby = on"'
+      - docker compose exec -it master  sh -c 'psql -U postgres -c "ALTER SYSTEM SET synchronous_commit = on"'
+      - docker compose exec -it master  sh -c 'psql -U postgres -c "ALTER SYSTEM SET hot_standby_feedback = off"'
+      - docker compose exec -it master  sh -c "psql -U postgres -c \"ALTER SYSTEM SET synchronous_standby_names = 'FIRST 1 (replica1)'\""
   replicas:replica:one:setup:
     cmds:
       - docker compose cp settings.sql  replica_1:/
